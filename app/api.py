@@ -1,9 +1,15 @@
 from flask import Flask
-from flask_restful import Resource, Api
-from flask_restful import reqparse
+from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+import json
 
 app = Flask(__name__)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:masukaja@127.0.0.1/rest_training'
+
 api = Api(app)
+db = SQLAlchemy(app)
 
 clients = [
     {
@@ -38,10 +44,22 @@ clients = [
     }
 ]
 
+client_field = {
+    'client_id': fields.Integer,
+    'client_key': fields.String,
+    'client_secret': fields.String,
+    'status': fields.Boolean
+}
+
 class Clients(Resource):
 
     def get(self):
-        return clients
+        sql = text('SELECT * FROM clients')
+        result = db.engine.execute(sql)
+        rows = []
+        for row in result.fetchall():
+            rows.append(marshal(row, client_field))
+        return rows, 200
 
 class Client(Resource):
 
