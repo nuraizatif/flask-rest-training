@@ -51,7 +51,16 @@ client_field = {
     'status': fields.Boolean
 }
 
-class Clients(Resource):
+class Clients(db.Model):
+    client_id = db.Column(db.Integer, primary_key=True)
+    client_key = db.Column(db.String(30), unique=True, nullable=False)
+    client_secret = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.Boolean, nullable=False)
+
+    def __repr__(self):
+        return '<Clients %r>' % self.client_id
+
+class ClientsResource(Resource):
 
     def get(self):
         parser = reqparse.RequestParser()
@@ -65,17 +74,14 @@ class Clients(Resource):
         else:
             offset = (args['p'] * args['rp']) - args['rp']
 
-        sql = text('SELECT * FROM clients LIMIT :o, :rp')
-
-        result = db.engine.execute(sql, o=offset, rp=args['rp'])
-
+        qry = Clients.query.limit(args['rp']).offset(offset)
         rows = []
-        for row in result.fetchall():
+        for row in qry.all():
             rows.append(marshal(row, client_field))
 
         return rows, 200
 
-class Client(Resource):
+class ClientResource(Resource):
 
     def get(self, id):
         for client in clients:
@@ -130,8 +136,8 @@ class HeaderPeek(Resource):
         args = parser.parse_args()
         return {'headers': args}
 
-api.add_resource(Clients, '/clients')
-api.add_resource(Client, '/client', '/client/<int:id>')
+api.add_resource(ClientsResource, '/clients')
+api.add_resource(ClientResource, '/client', '/client/<int:id>')
 api.add_resource(HeaderPeek, '/headers')
 
 if __name__ == '__main__':
