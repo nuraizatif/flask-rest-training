@@ -7,6 +7,7 @@ import json
 app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:masukaja@127.0.0.1/rest_training'
+app.config['SQLALCHEMY_ECHO'] = True
 
 api = Api(app)
 db = SQLAlchemy(app)
@@ -51,14 +52,15 @@ client_field = {
     'status': fields.Boolean
 }
 
-class Clients(db.Model):
+class Client(db.Model):
+    __table__ = "clients"
     client_id = db.Column(db.Integer, primary_key=True)
     client_key = db.Column(db.String(30), unique=True, nullable=False)
     client_secret = db.Column(db.String(255), nullable=False)
     status = db.Column(db.Boolean, nullable=False)
 
     def __repr__(self):
-        return '<Clients %r>' % self.client_id
+        return '<Client %r>' % self.client_id
 
 class ClientsResource(Resource):
 
@@ -66,7 +68,7 @@ class ClientsResource(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('p', type=int, location='args', default=1)
         parser.add_argument('rp', type=int, location='args', default=25)
-        parser.add_argument('status', type=bool, location='args')
+        parser.add_argument('status', location='args', help='invalid status', choices=('true','false','True','False'))
         args = parser.parse_args()
 
         if args['p']==1:
@@ -74,9 +76,15 @@ class ClientsResource(Resource):
         else:
             offset = (args['p'] * args['rp']) - args['rp']
 
-        qry = Clients.query.limit(args['rp']).offset(offset)
+        qry = Client.query
+
+        if args['status']=="True".lower():
+            qry_1 = qry.filter_by(status=True)
+        elif args['status']=="False".lower():
+            qry_1 = qry.filter_by(status=False)
+
         rows = []
-        for row in qry.all():
+        for row in qry_1.limit(args['rp']).offset(offset).all():
             rows.append(marshal(row, client_field))
 
         return rows, 200
