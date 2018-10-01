@@ -54,11 +54,25 @@ client_field = {
 class Clients(Resource):
 
     def get(self):
-        sql = text('SELECT * FROM clients')
-        result = db.engine.execute(sql)
+        parser = reqparse.RequestParser()
+        parser.add_argument('p', type=int, location='args', default=1)
+        parser.add_argument('rp', type=int, location='args', default=25)
+        parser.add_argument('status', type=bool, location='args')
+        args = parser.parse_args()
+
+        if args['p']==1:
+            offset = 0
+        else:
+            offset = (args['p'] * args['rp']) - args['rp']
+
+        sql = text('SELECT * FROM clients LIMIT :o, :rp')
+
+        result = db.engine.execute(sql, o=offset, rp=args['rp'])
+
         rows = []
         for row in result.fetchall():
             rows.append(marshal(row, client_field))
+
         return rows, 200
 
 class Client(Resource):
