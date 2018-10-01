@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
+from sqlalchemy import desc
 import json
 
 app = Flask(__name__)
@@ -53,7 +53,7 @@ client_field = {
 }
 
 class Client(db.Model):
-    __table__ = "clients"
+    __tablename__ = "clients"
     client_id = db.Column(db.Integer, primary_key=True)
     client_key = db.Column(db.String(30), unique=True, nullable=False)
     client_secret = db.Column(db.String(255), nullable=False)
@@ -69,6 +69,8 @@ class ClientsResource(Resource):
         parser.add_argument('p', type=int, location='args', default=1)
         parser.add_argument('rp', type=int, location='args', default=25)
         parser.add_argument('status', location='args', help='invalid status', choices=('true','false','True','False'))
+        parser.add_argument('orderby', location='args', help='invalid orderby value', choices=('client_id','client_key','status'))
+        parser.add_argument('sort', location='args', help='invalid sort value', choices=('desc','asc'))
         args = parser.parse_args()
 
         if args['p']==1:
@@ -82,9 +84,29 @@ class ClientsResource(Resource):
             qry_1 = qry.filter_by(status=True)
         elif args['status']=="False".lower():
             qry_1 = qry.filter_by(status=False)
+        else:
+            qry_1 = qry
+
+        if args['orderby']=='client_id':
+            if args['sort']=='desc':
+                qry_2 = qry_1.order_by(desc(Client.client_id))
+            else:
+                qry_2 = qry_1.order_by(Client.client_id)
+        elif args['orderby']=='client_key':
+            if args['sort']=='desc':
+                qry_2 = qry_1.order_by(desc(Client.client_key))
+            else:
+                qry_2 = qry_1.order_by(Client.client_key)
+        elif args['orderby']=='status':
+            if args['sort']=='desc':
+                qry_2 = qry_1.order_by(desc(Client.status))
+            else:
+                qry_2 = qry_1.order_by(Client.status)
+        else:
+            qry_2 = qry_1
 
         rows = []
-        for row in qry_1.limit(args['rp']).offset(offset).all():
+        for row in qry_2.limit(args['rp']).offset(offset).all():
             rows.append(marshal(row, client_field))
 
         return rows, 200
