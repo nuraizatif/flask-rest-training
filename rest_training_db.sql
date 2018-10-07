@@ -5,7 +5,8 @@ CREATE TABLE `clients` (
   `client_key` varchar(30) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
   `client_secret` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
   `status` tinyint(1) NOT NULL,
-  PRIMARY KEY (`client_id`)
+  PRIMARY KEY (`client_id`),
+  UNIQUE KEY `unique_clients_client_key` (`client_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 INSERT INTO `clients` (`client_id`, `client_key`, `client_secret`, `status`)

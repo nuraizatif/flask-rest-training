@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import desc
+from sqlalchemy import exc, desc
 import json
 
 app = Flask(__name__)
@@ -114,25 +114,25 @@ class ClientsResource(Resource):
 class ClientResource(Resource):
 
     def get(self, id):
-        for client in clients:
-            if client['client_id'] == id:
-                return client, 200
-        
-        return {'message': 'NOT_FOUND'}, 404
+        qry = Client.query.get(id)
+        if qry is not None:
+            return marshal(qry, client_field), 200
+        return {'status': 'NOT_FOUND'}, 404
     
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('client_id', type=int, help='Client id must be an integer',	location='json', required=True)
         parser.add_argument('client_key', location='json', required=True)
         parser.add_argument('client_secret', location='json', required=True)
         parser.add_argument('status', type=bool, location='json')
         args = parser.parse_args()
 
-        nuclient = {'client_id': args['client_id'], 'client_key': args['client_key'], 'client_secret': args['client_secret'], 'status': args['status']}
+        obj = Client(client_key=args['client_key'], client_secret=args['client_secret'], status=args['status'])
+        db.session.add(obj)
+        db.session.commit()
 
-        clients.append(nuclient)
+        app.logger.debug('DEBUG : %s', obj)
         
-        return nuclient, 200
+        return marshal(obj, client_field), 200
 
     def put(self, id):
         parser = reqparse.RequestParser()
@@ -141,21 +141,26 @@ class ClientResource(Resource):
         parser.add_argument('status', type=bool, location='json')
         args = parser.parse_args()
 
-        for idx, client in enumerate(clients):
-            if client['client_id'] == id:
-                changes = {'client_id': client['client_id'], 'client_key': args['client_key'], 'client_secret': args['client_secret'], 'status': args['status']}
-                clients[idx] = changes
-                return changes, 200
+        qry = Client.query.get(id)
+        if qry is None:
+            return {'status': 'NOT_FOUND'}, 404
         
-        return {'message': 'NOT_FOUND'}, 404
+        qry.client_key = args['client_key']
+        qry.client_secret = args['client_secret']
+        qry.status = args['status']
+        db.session.commit()
+
+        return marshal(qry, client_field), 200
     
     def delete(self, id):
-        for idx, client in enumerate(clients):
-            if client['client_id'] == id:
-                clients.pop(idx)
-                return {'message': 'DELETED'}, 200
+        qry = Client.query.get(id)
+        if qry is None:
+            return {'status': 'NOT_FOUND'}, 404
+
+        db.session.delete(qry)
+        db.session.commit()
         
-        return {'message': 'NOT_FOUND'}, 404
+        return {'status': 'DELETED'}, 200
 
 class HeaderPeek(Resource):
     
@@ -169,6 +174,12 @@ class HeaderPeek(Resource):
 api.add_resource(ClientsResource, '/clients')
 api.add_resource(ClientResource, '/client', '/client/<int:id>')
 api.add_resource(HeaderPeek, '/headers')
+
+@app.errorhandler(exc.IntegrityError)
+def handle_bad_request(e):
+    return json.dumps({'status': 'BAD_REQUEST', 'message': str(e)}) \
+        , 400 \
+        , {'Content-Type': 'application/json'}
 
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0', port=5000)
