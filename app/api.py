@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
 from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity
 from sqlalchemy import exc, desc
 import json
 
@@ -8,42 +9,11 @@ app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:masukaja@127.0.0.1/rest_training'
 app.config['SQLALCHEMY_ECHO'] = True
+app.config['JWT_SECRET_KEY'] = 'SFsieaaBsLEpecP675r243faM8oSB2hV'
 
 api = Api(app)
 db = SQLAlchemy(app)
-
-clients = [
-    {
-        "client_id": 1,
-        "client_key": "CLIENT01",
-        "client_secret": "SECRET01",
-        "status": True
-    },
-    {
-        "client_id": 2,
-        "client_key": "CLIENT02",
-        "client_secret": "SECRET01",
-        "status": True
-    },
-    {
-        "client_id": 3,
-        "client_key": "CLIENT03",
-        "client_secret": "SECRET03",
-        "status": True
-    },
-    {
-        "client_id": 4,
-        "client_key": "CLIENT04",
-        "client_secret": "SECRET04",
-        "status": False
-    },
-    {
-        "client_id": 5,
-        "client_key": "CLIENT05",
-        "client_secret": "SECRET05",
-        "status": False
-    }
-]
+jwt = JWTManager(app)
 
 client_field = {
     'client_id': fields.Integer,
@@ -129,8 +99,6 @@ class ClientResource(Resource):
         obj = Client(client_key=args['client_key'], client_secret=args['client_secret'], status=args['status'])
         db.session.add(obj)
         db.session.commit()
-
-        app.logger.debug('DEBUG : %s', obj)
         
         return marshal(obj, client_field), 200
 
@@ -170,6 +138,25 @@ class HeaderPeek(Resource):
         parser.add_argument('X-CustomHeader', location='headers')
         args = parser.parse_args()
         return {'headers': args}
+
+
+class LoginResource(Resource):
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('client_key', location='json', required=True)
+        parser.add_argument('client_secret', location='json', required=True)
+        args = parser.parse_args()
+
+        qry = Client.query.filter_by(client_key=args['client_key'], client_secret=args['client_secret']).first()
+        if qry is None:
+            return {'status': 'UNAUTHORIZED', 'message': 'Invalid client key or secret'}, 401
+
+        token = create_access_token(identity=args['client_key'])
+        
+        return {'token': token}, 200
+
+api.add_resource(LoginResource, '/login')
 
 api.add_resource(ClientsResource, '/clients')
 api.add_resource(ClientResource, '/client', '/client/<int:id>')
