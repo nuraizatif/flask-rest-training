@@ -12,39 +12,6 @@ app.config['SQLALCHEMY_ECHO'] = True
 api = Api(app)
 db = SQLAlchemy(app)
 
-clients = [
-    {
-        "client_id": 1,
-        "client_key": "CLIENT01",
-        "client_secret": "SECRET01",
-        "status": True
-    },
-    {
-        "client_id": 2,
-        "client_key": "CLIENT02",
-        "client_secret": "SECRET01",
-        "status": True
-    },
-    {
-        "client_id": 3,
-        "client_key": "CLIENT03",
-        "client_secret": "SECRET03",
-        "status": True
-    },
-    {
-        "client_id": 4,
-        "client_key": "CLIENT04",
-        "client_secret": "SECRET04",
-        "status": False
-    },
-    {
-        "client_id": 5,
-        "client_key": "CLIENT05",
-        "client_secret": "SECRET05",
-        "status": False
-    }
-]
-
 client_field = {
     'client_id': fields.Integer,
     'client_key': fields.String,
