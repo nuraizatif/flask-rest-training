@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
 from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, verify_jwt_in_request, get_jwt_claims, jwt_required
 from sqlalchemy import exc, desc
 import json
 
@@ -34,6 +34,7 @@ class Client(db.Model):
 
 class ClientsResource(Resource):
 
+    @jwt_required   # using default decorator
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('p', type=int, location='args', default=1)
@@ -162,11 +163,31 @@ api.add_resource(ClientsResource, '/clients')
 api.add_resource(ClientResource, '/client', '/client/<int:id>')
 api.add_resource(HeaderPeek, '/headers')
 
+#######################################
+# Error handler
+#######################################
+
 @app.errorhandler(exc.IntegrityError)
 def handle_bad_request(e):
     return json.dumps({'status': 'BAD_REQUEST', 'message': str(e)}) \
         , 400 \
         , {'Content-Type': 'application/json'}
+
+#######################################
+# JWT callback handler
+#######################################
+
+@jwt.expired_token_loader
+def my_expired_token_callback():
+    return json.dumps({'status': 'EXPIRED_TOKEN', 'message': 'Token has expired'}) \
+    , 401 \
+    , {'Content-Type': 'application/json'}
+
+@jwt.invalid_token_loader
+def my_invalid_token_callback(err):
+    return json.dumps({'status': 'INVALID_TOKEN', 'message': err}) \
+    , 401 \
+    , {'Content-Type': 'application/json'}
 
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0', port=5000)
