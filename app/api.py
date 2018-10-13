@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
 from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, verify_jwt_in_request, get_jwt_claims, jwt_required
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, verify_jwt_in_request, get_jwt_claims, jwt_required, get_raw_jwt
 from sqlalchemy import exc, desc
 import json
 
@@ -156,6 +156,13 @@ class LoginResource(Resource):
         token = create_access_token(identity=args['client_key'])
         
         return {'token': token}, 200
+    
+    @jwt_required
+    def get(self):
+        claims = get_jwt_claims()
+        raw = get_raw_jwt()
+        return {'claims': claims, 'raw': raw}, 200
+
 
 api.add_resource(LoginResource, '/login')
 
@@ -183,11 +190,20 @@ def my_expired_token_callback():
     , 401 \
     , {'Content-Type': 'application/json'}
 
+@jwt.unauthorized_loader
 @jwt.invalid_token_loader
 def my_invalid_token_callback(err):
     return json.dumps({'status': 'INVALID_TOKEN', 'message': err}) \
     , 401 \
     , {'Content-Type': 'application/json'}
+
+@jwt.user_claims_loader
+def add_claims_to_access_token(identity):
+    return {
+        'key_1': 'value_1',
+        'key_2': 'value_2',
+        'key_3': [ 'this', 'is', 'a', 'list', 'value', 'of', 'key_3' ]
+    }
 
 if __name__ == '__main__':
    app.run(debug=True, host='0.0.0.0', port=5000)
