@@ -1,3 +1,4 @@
+from werkzeug.contrib.cache import SimpleCache
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
 from flask_sqlalchemy import SQLAlchemy
@@ -6,6 +7,8 @@ from sqlalchemy import exc, desc
 import json
 
 app = Flask(__name__)
+
+cache = SimpleCache()
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:masukaja@127.0.0.1/rest_training'
 app.config['SQLALCHEMY_ECHO'] = True
